@@ -3,7 +3,7 @@ import pandas as pd
 from datetime import datetime
 import json
 from src.utils import texts_tokenize
-from src.storage import ElasticClient, DataFromDB
+from src.storage import DataFromDB
 from src.utils import timeit
 from collections import namedtuple
 from src.config import PROJECT_ROOT_DIR
