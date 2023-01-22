@@ -38,7 +38,7 @@ class TextsTokenizer:
     def tokenization(self, texts: [str]) -> [[]]:
         """list of texts lemmatization with stop words deleting"""
         lemm_texts = self.texts2tokens(texts)
-        return [self.patterns.sub(" ", " ".join(l_tx)).split() for l_tx in lemm_texts]
+        return [self.patterns.sub("", " ".join(l_tx)).split() for l_tx in lemm_texts]
 
     def __call__(self, texts: [str]):
         return self.tokenization(texts)
