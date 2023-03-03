@@ -25,17 +25,24 @@ print(df)
 df.drop_duplicates(inplace=True)
 df['label'] = np.where((df['left_id'] == df['right_id']), 1, 0)
 
-print(sum(df["label"]))
+print("количество позитивных примеров:", sum(df["label"]))
 df.to_csv(os.path.join(PROJECT_ROOT_DIR, "data", "dataset.csv"), sep="\t", index=False)
 
 
 unique_ids = set(list(ids_answrs_df["FastAnswId"]))
-print(len(unique_ids))
+print("количество уникальных айди ответов:", len(unique_ids))
 
+paraphrases = []
 for ans_id in set(list(ids_answrs_df["FastAnswId"])):
     temp_df = ids_answrs_df[ids_answrs_df["FastAnswId"] == ans_id]
     temp_texts = list(temp_df["lem_texts"])
+    temp_paraphrases = [tuple(sorted([tx1, tx2])) for tx1 in temp_texts for tx2 in temp_texts]
+    paraphrases += list(set(temp_paraphrases))
 
+# Замечание: т. к. фасттекст просто усредняет векторы слов н-граммы, последовательность слов не должна играть роли
+# Для других моделей (например для трансформеров, лучше не сортировать тексты
+print(paraphrases[:20])
+print(len(paraphrases))
 
 """
 from itertools import groupby
