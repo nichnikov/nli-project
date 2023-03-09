@@ -104,19 +104,18 @@ model_rout = r"./models"
 data_rout = r"./data"
 
 # d2v_model = Doc2Vec.load(os.path.join(model_rout, 'bss_doc2vec_model'))
-model = fasttext.load_model(os.path.join("models", "bss_cbow_lem.bin"))
-df = pd.read_csv(os.path.join(data_rout, "data_for_learning_lemm.tsv"), sep='\t')
-
-print(df.shape)
+ft_model = fasttext.load_model(os.path.join("models", "bss_cbow_lem.bin"))
+df = pd.read_csv(os.path.join(data_rout, "dataset_for_paraphrases.csv"), sep='\t')
+print("dataset_for_paraphrases:", df.shape)
 data_df = df.sample(frac=1)
-
+print(sum(data_df["label"]))
 n_examples = 576330
 n_train = 500000
 
 data_tuples = zip(list(data_df["question1"][:n_examples]), list(data_df["question2"][:n_examples]),
                   list(data_df["is_duplicate"][:n_examples]))
 
-X, y = siamese_data_prepare(data_tuples, d2v_model, one_vector=False)
+X, y = siamese_data_prepare(data_tuples, ft_model, one_vector=False)
 
 # т. к. датафрейм уже перемешан, то можно получившиеся списки делить на тренировочную и тестовую выборки
 x_train = X[:n_train]

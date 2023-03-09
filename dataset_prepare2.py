@@ -37,8 +37,8 @@ shuffle(no_unique_ids_pairs)
 
 no_paraphrases = []
 for id1, id2 in no_unique_ids_pairs[:500000]:
-    temp1 = list(ids_answrs_df[ids_answrs_df["FastAnswId"] == id1]["lem_texts"])[:2]
-    temp2 = list(ids_answrs_df[ids_answrs_df["FastAnswId"] == id2]["lem_texts"])[:2]
+    temp1 = list(ids_answrs_df[ids_answrs_df["FastAnswId"] == id1]["lem_texts"])[:1]
+    temp2 = list(ids_answrs_df[ids_answrs_df["FastAnswId"] == id2]["lem_texts"])[:1]
     shuffle(temp1)
     shuffle(temp2)
     temp_paraphrases = [tuple(sorted([tx1, tx2])) for tx1, tx2 in zip(temp1, temp2) if type(tx1) is str
@@ -51,7 +51,7 @@ print("количество позитивных примеров (каждый 
 dataset = [(tx1, tx2, 1) for tx1, tx2 in paraphrases] + [(tx1, tx2, 0) for tx1, tx2 in no_paraphrases]
 
 dataset_df = pd.DataFrame(dataset, columns=["text1", "text2", "label"])
-dataset_df.to_csv(os.path.join("data", "dataset_for_paraphrases.csv"), sep="\t", index=False)
+dataset_df.to_csv(os.path.join("data", "dataset_for_paraphrases2.csv"), sep="\t", index=False)
 
 # Замечание: т. к. фасттекст просто усредняет векторы слов н-граммы, последовательность слов не должна играть роли
 # Для других моделей (например для трансформеров, лучше не сортировать тексты
