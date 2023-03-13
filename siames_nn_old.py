@@ -105,15 +105,15 @@ data_rout = r"./data"
 
 # d2v_model = Doc2Vec.load(os.path.join(model_rout, 'bss_doc2vec_model'))
 ft_model = fasttext.load_model(os.path.join("models", "bss_cbow_lem.bin"))
-df = pd.read_csv(os.path.join(data_rout, "dataset_for_paraphrases.csv"), sep='\t')
+df = pd.read_csv(os.path.join(data_rout, "dataset_for_paraphrases2.csv"), sep='\t')
 print("dataset_for_paraphrases:", df.shape)
 data_df = df.sample(frac=1)
 print(sum(data_df["label"]))
-n_examples = 576330
-n_train = 500000
+n_examples = 1000000
+n_train = 8000
 
-data_tuples = zip(list(data_df["question1"][:n_examples]), list(data_df["question2"][:n_examples]),
-                  list(data_df["is_duplicate"][:n_examples]))
+data_tuples = zip(list(data_df["text1"][:n_examples]), list(data_df["text2"][:n_examples]),
+                  list(data_df["label"][:n_examples]))
 
 X, y = siamese_data_prepare(data_tuples, ft_model, one_vector=False)
 
@@ -134,7 +134,7 @@ tr_y = np.array(y_train)
 te_pairs = np.array(x_test)
 te_y = np.array(y_test)
 
-input_shape = (300, 1)
+input_shape = (100, 1)
 # tr_pairs.shape[:]
 print(input_shape)
 

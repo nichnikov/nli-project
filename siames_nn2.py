@@ -1,0 +1,165 @@
+"""
+https://github.com/hlamba28/One-Shot-Learning-with-Siamese-Networks/blob/master/Siamese%20on%20Omniglot%20Dataset.ipynb
+"""
+
+from __future__ import absolute_import
+from __future__ import print_function
+import os
+import pandas as pd
+from keras.layers import Dense, Dropout, LSTM, Input, Lambda
+from keras.models import Model
+import fasttext
+import numpy as np
+from random import shuffle
+from keras import backend as K
+
+
+def euclidean_distance(vects):
+    x, y = vects
+    sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
+    return K.sqrt(K.maximum(sum_square, K.epsilon()))
+
+
+def eucl_dist_output_shape(shapes):
+    shape1, shape2 = shapes
+    return (shape1[0], 1)
+
+
+def contrastive_loss(y_true, y_pred):
+    '''Contrastive loss from Hadsell-et-al.'06
+    http://yann.lecun.com/exdb/publis/pdf/hadsell-chopra-lecun-06.pdf
+    '''
+    margin = 1
+    square_pred = K.square(y_pred)
+    margin_square = K.square(K.maximum(margin - y_pred, 0))
+    return K.mean(y_true * square_pred + (1 - y_true) * margin_square)
+
+
+def create_base_network(input_shape):
+    '''Base network to be shared (eq. to feature extraction).
+    '''
+    input = Input(shape=input_shape)
+    # x = Flatten()(input)
+    x = LSTM(250, input_shape=input_shape)(input)
+    x = Dropout(0.1)(x)
+    # x = Dense(128, activation='relu')(x)
+    # x = Dropout(0.2)(x)
+    x = Dense(128, activation='relu')(x)
+    x = Dropout(0.2)(x)
+    x = Dense(128, activation='relu')(x)
+    return Model(input, x)
+
+
+def compute_accuracy(y_true, y_pred):
+    '''Compute classification accuracy with a fixed threshold on distances.
+    '''
+    pred = y_pred.ravel() < 0.5
+    return np.mean(pred == y_true)
+
+
+def accuracy(y_true, y_pred):
+    '''Compute classification accuracy with a fixed threshold on distances.
+    '''
+    return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
+
+
+# функция векторизации, возвращает список:
+#  кортежей
+# if one_vector == True [(v: np.array, lb: int), ...]
+# if one_vector == False [((v1: np.array, v2: np.array), lb: int), ...]
+
+def siamese_data_prepare(data_tuples, model, one_vector=True):
+    X, y = [], []
+    if one_vector:
+        for q1, q2, lb in data_tuples:
+            tx = q1 + " " + q2
+            v = model.get_sentence_vector(tx)
+            X.append(v)
+            y.append(np.float32(lb))
+    else:
+        for q1, q2, lb in data_tuples:
+            v1 = model.get_sentence_vector(q1)
+            v2 = model.get_sentence_vector(q2)
+            X.append((v1, v2))
+            y.append(np.float32(lb))
+    return X, y
+
+
+model_rout = r"./models"
+data_rout = r"./data"
+
+# d2v_model = Doc2Vec.load(os.path.join(model_rout, 'bss_doc2vec_model'))
+ft_model = fasttext.load_model(os.path.join("models", "bss_cbow_lem.bin"))
+df = pd.read_csv(os.path.join(data_rout, "dataset_for_paraphrases2.csv"), sep='\t')
+print("dataset_for_paraphrases:", df.shape)
+data_df = df.sample(frac=1)
+print(sum(data_df["label"]))
+n_examples = 10000000
+n_train = 900000
+
+data_tuples = list(zip(list(data_df["text1"][:n_examples]), list(data_df["text2"][:n_examples]),
+                       list(data_df["label"][:n_examples])))
+shuffle(data_tuples)
+
+X, y = siamese_data_prepare(data_tuples, ft_model, one_vector=False)
+
+# т. к. датафрейм уже перемешан, то можно получившиеся списки делить на тренировочную и тестовую выборки
+x_train = X[:n_train]
+x_test = X[n_train:]
+y_train = y[:n_train]
+y_test = y[n_train:]
+
+# ===========================================================================================
+
+# num_classes = 10
+epochs = 100
+
+tr_pairs = np.array(x_train)
+tr_y = np.array(y_train)
+
+te_pairs = np.array(x_test)
+te_y = np.array(y_test)
+
+input_shape = (100, 1)
+# tr_pairs.shape[:]
+print(input_shape)
+
+# network definition
+base_network = create_base_network(input_shape)
+print("base_network Done")
+
+input_a = Input(shape=input_shape)
+input_b = Input(shape=input_shape)
+
+# because we re-use the same instance `base_network`,
+# the weights of the network
+# will be shared across the two branches
+processed_a = base_network(input_a)
+processed_b = base_network(input_b)
+print("processed_a, processed_b Done")
+
+distance = Lambda(euclidean_distance,
+                  output_shape=eucl_dist_output_shape)([processed_a, processed_b])
+
+print("distance Done")
+
+model = Model([input_a, input_b], distance)
+print("model Done")
+
+# train
+# rms = RMSprop()
+model.compile(loss=contrastive_loss, optimizer="Adam", metrics=[accuracy])
+print("model.compile Done")
+
+x_tr1 = tr_pairs[:, 0].reshape(tr_pairs[:, 0].shape[0], tr_pairs[:, 0].shape[1], 1)
+x_tr2 = tr_pairs[:, 1].reshape(tr_pairs[:, 1].shape[0], tr_pairs[:, 1].shape[1], 1)
+
+x_te1 = te_pairs[:, 0].reshape(te_pairs[:, 0].shape[0], te_pairs[:, 0].shape[1], 1)
+x_te2 = te_pairs[:, 1].reshape(te_pairs[:, 1].shape[0], te_pairs[:, 1].shape[1], 1)
+
+model.fit([x_tr1, x_tr2], tr_y,
+          batch_size=1024,
+          epochs=epochs,
+          validation_data=([x_te1, x_te2], te_y))
+
+model.save(os.path.join(model_rout, 'siamese_model_ft_lstm_100e.h5'))

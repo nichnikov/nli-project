@@ -2,7 +2,7 @@ import re
 # from hunspell import Hunspell
 from pymystem3 import Mystem
 from itertools import chain, filterfalse
-from src.config import logger
+# from src.config import logger
 
 
 class TextsTokenizer:
